@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BHLC · Asistencia</title>
+<link rel="manifest" href="BHLC-manifest.json">
+<meta name="theme-color" content="#1B2A4A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BHLC">
+<link rel="apple-touch-icon" href="BHLC-icon-192.png">
+<link rel="icon" href="BHLC-icon-192.png">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- QR Generator & Scanner -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+:root{
+  --navy:#1B2A4A;--navy-deep:#11192e;--amber:#E8A33D;--amber-soft:#f6dba8;
+  --cream:#F7F4EE;--card:#FFFDF8;--ink:#1B2A4A;--muted:#6b7488;
+  --ok:#3E7C5A;--danger:#B0473E;--line:#e3ddcd;
+  --font-display:'Courier New',monospace;
+  --font-body:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-body);min-height:100vh;}
+
+/* ---- LOGIN ---- */
+#loginScreen{
+  display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:linear-gradient(160deg,var(--navy-deep) 0%,var(--navy) 100%);
+  padding:20px;
+}
+.loginBox{
+  background:var(--card);border-radius:16px;padding:36px 28px;
+  width:100%;max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,0.3);
+}
+.loginBox .logo{text-align:center;margin-bottom:24px;}
+.loginBox .logo .initials{
+  font-size:2.5rem;font-weight:900;color:var(--navy);
+  font-family:var(--font-display);letter-spacing:4px;
+}
+.loginBox .logo .sub{font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
+.loginBox h2{margin:0 0 20px;font-size:1.1rem;text-align:center;color:var(--navy);}
+.loginBox input{
+  width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:8px;
+  font-size:0.95rem;font-family:var(--font-body);margin-bottom:12px;background:#fff;
+}
+.loginBox input:focus{outline:none;border-color:var(--amber);}
+#loginErr{color:var(--danger);font-size:0.82rem;text-align:center;margin-top:4px;min-height:20px;}
+
+/* ---- SETUP OVERLAY ---- */
+#setupOverlay{
+  display:none;position:fixed;inset:0;background:rgba(17,25,46,0.92);
+  z-index:999;align-items:center;justify-content:center;padding:20px;
+}
+#setupOverlay.show{display:flex;}
+.setupBox{
+  background:var(--card);border-radius:14px;padding:28px;
+  width:100%;max-width:500px;max-height:90vh;overflow-y:auto;
+}
+.setupBox h2{margin-top:0;color:var(--navy);}
+.setupBox p{font-size:0.88rem;color:var(--muted);line-height:1.6;}
+.setupBox .step{
+  background:#f0f4ff;border-left:4px solid var(--amber);border-radius:0 8px 8px 0;
+  padding:10px 14px;margin:10px 0;font-size:0.85rem;
+}
+.setupBox .step strong{display:block;margin-bottom:4px;}
+.setupBox input{
+  width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:7px;
+  font-size:0.88rem;font-family:var(--font-body);margin:6px 0 10px;background:#fff;
+}
+
+/* ---- APP SHELL ---- */
+#appShell{display:none;}
+#appShell.show{display:block;}
+header{background:var(--navy);color:var(--cream);padding:14px 18px 10px;border-bottom:5px solid var(--amber);}
+header .row{display:flex;align-items:center;justify-content:space-between;}
+header h1{margin:0;font-size:1.2rem;}
+header .tag{font-family:var(--font-display);font-size:0.68rem;color:var(--amber-soft);text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
+.userBadge{font-size:0.75rem;color:var(--amber-soft);display:flex;align-items:center;gap:8px;}
+.userBadge button{background:var(--danger);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:0.72rem;cursor:pointer;}
+
+nav{display:flex;background:var(--navy-deep);overflow-x:auto;}
+nav button{
+  flex:1;min-width:100px;background:transparent;border:none;color:#aab3c8;
+  padding:12px 8px;font-size:0.8rem;font-weight:600;cursor:pointer;
+  border-bottom:3px solid transparent;font-family:var(--font-body);white-space:nowrap;
+}
+nav button.active{color:var(--amber);border-bottom:3px solid var(--amber);background:rgba(232,163,61,0.07);}
+
+main{max-width:980px;margin:0 auto;padding:20px 14px 70px;}
+.panel{display:none;} .panel.active{display:block;}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px;}
+.card h2{margin-top:0;font-size:1rem;border-bottom:2px dashed var(--line);padding-bottom:8px;}
+
+label{display:block;font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 3px;}
+input[type=text],input[type=email],input[type=password],input[type=file]{
+  width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;
+  font-size:0.92rem;font-family:var(--font-body);background:#fff;
+}
+
+.btn{display:inline-block;background:var(--navy);color:#fff;border:none;padding:11px 18px;border-radius:7px;font-weight:700;cursor:pointer;font-size:0.88rem;margin-top:12px;}
+.btn.amber{background:var(--amber);color:var(--navy-deep);}
+.btn.outline{background:transparent;color:var(--navy);border:1.5px solid var(--navy);}
+.btn.sm{padding:7px 13px;font-size:0.78rem;margin-top:6px;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+.badge{
+  background:linear-gradient(180deg,#fff,#fbf8f1);border:1px solid var(--line);
+  border-radius:14px;padding:16px;position:relative;box-shadow:0 4px 14px rgba(27,42,74,0.1);
+}
+.badge::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:50px;height:14px;background:var(--navy);border-radius:0 0 7px 7px;}
+.badge .org{font-family:var(--font-display);font-size:0.62rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;text-align:center;margin-bottom:4px;}
+.badge .qrwrap{display:flex;justify-content:center;margin:6px 0;}
+.badge .bname{text-align:center;font-weight:800;font-size:0.98rem;margin-top:4px;}
+.badge .brole{text-align:center;font-size:0.76rem;color:var(--muted);}
+.badge .bidcode{text-align:center;font-family:var(--font-display);font-size:0.72rem;color:var(--navy);margin-top:7px;border-top:1px dashed var(--line);padding-top:7px;}
+.badge .bactions{display:flex;gap:6px;margin-top:10px;justify-content:center;flex-wrap:wrap;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+
+table{width:100%;border-collapse:collapse;font-size:0.83rem;}
+th,td{text-align:left;padding:8px 7px;border-bottom:1px solid var(--line);}
+th{font-family:var(--font-display);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}
+.pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:0.72rem;font-weight:700;}
+.pill.in{background:#e1eee5;color:var(--ok);}
+.pill.out{background:#f3dedb;color:var(--danger);}
+
+#reader{width:100%;max-width:420px;margin:0 auto;border-radius:10px;overflow:hidden;}
+#scanResult{margin-top:12px;padding:14px;border-radius:8px;font-weight:700;text-align:center;display:none;}
+#scanResult.show{display:block;}
+#scanResult.in{background:#e1eee5;color:var(--ok);}
+#scanResult.out{background:#f3dedb;color:var(--danger);}
+#scanResult.err{background:#f3e3d3;color:#7a4d10;}
+
+.empty{color:var(--muted);font-style:italic;padding:8px 0;}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.note{font-size:0.8rem;color:var(--muted);background:#fbf3df;border:1px solid var(--amber-soft);border-radius:8px;padding:10px 13px;margin-bottom:14px;}
+.ok-note{font-size:0.8rem;color:var(--ok);background:#e8f5ed;border:1px solid #b8dfc7;border-radius:8px;padding:10px 13px;margin-bottom:14px;}
+
+.profile-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);}
+.profile-row .pname{font-weight:700;}
+.profile-row .pmeta{font-size:0.76rem;color:var(--muted);}
+.smallbtn{background:transparent;border:1px solid var(--line);border-radius:5px;padding:4px 9px;font-size:0.73rem;cursor:pointer;margin-left:5px;}
+
+.geoTag{font-size:0.72rem;color:var(--muted);font-family:var(--font-display);}
+.geoLink{color:var(--navy);text-decoration:underline;font-size:0.72rem;}
+
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--amber);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media print{header,nav,.no-print{display:none !important;}}
+</style>
+</head>
+<body>
+
+<!-- ==================== CONFIGURACIÓN FIREBASE ==================== -->
+<!-- MODIFICA ESTE BLOQUE CON TUS DATOS DE FIREBASE -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "PEGA_AQUI_TU_apiKey",
+  authDomain:        "PEGA_AQUI_TU_authDomain",
+  projectId:         "PEGA_AQUI_TU_projectId",
+  storageBucket:     "PEGA_AQUI_TU_storageBucket",
+  messagingSenderId: "PEGA_AQUI_TU_messagingSenderId",
+  appId:             "PEGA_AQUI_TU_appId"
+};
+// Correos de los dos administradores permitidos (en minúsculas)
+const ADMINS_PERMITIDOS = [
+  "admin1@tucorreo.com",
+  "admin2@tucorreo.com"
+];
+</script>
+<!-- ============================================================== -->
+
+<!-- ===== PANTALLA SETUP (primera vez) ===== -->
+<div id="setupOverlay">
+  <div class="setupBox">
+    <h2>⚙️ Configuración inicial de BHLC</h2>
+    <p>Esta app aún no está conectada a Firebase. Sigue estos pasos rápidos (gratis, 5 minutos):</p>
+    <div class="step"><strong>Paso 1 — Crear proyecto Firebase</strong>
+      Entra a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → "Agregar proyecto" → ponle un nombre (ej. <em>bhlc-asistencia</em>) → desactiva Analytics → Crear.</div>
+    <div class="step"><strong>Paso 2 — Activar Autenticación</strong>
+      En el menú izquierdo: <em>Authentication → Get started → Email/Contraseña → Activar → Guardar</em>.<br>
+      Luego ve a <em>Authentication → Users → Add user</em> y crea los dos correos de administrador con sus contraseñas.</div>
+    <div class="step"><strong>Paso 3 — Activar Firestore</strong>
+      Menú izquierdo: <em>Firestore Database → Create database → Start in test mode → Next → Enable</em>.</div>
+    <div class="step"><strong>Paso 4 — Obtener credenciales</strong>
+      Menú izquierdo: <em>Project Settings (ícono ⚙️) → General → Tu aplicación → &lt;/&gt; (Web) → Registrar app</em>. Copia el bloque <code>firebaseConfig</code> y pégalo en el archivo <code>BHLC-asistencia.html</code> dentro del bloque FIREBASE_CONFIG (líneas ~65-72).<br>
+      También actualiza el arreglo <code>ADMINS_PERMITIDOS</code> con los correos de los dos admins.</div>
+    <p>Cuando termines, recarga esta página.</p>
+    <button class="btn amber" onclick="document.getElementById('setupOverlay').classList.remove('show')">Entendido, ya lo configuré</button>
+  </div>
+</div>
+
+<!-- ===== PANTALLA LOGIN ===== -->
+<div id="loginScreen">
+  <div class="loginBox">
+    <div class="logo">
+      <div class="initials">BHLC</div>
+      <div class="sub">Asistencia QR</div>
+    </div>
+    <h2>Acceso administrador</h2>
+    <input type="email" id="loginEmail" placeholder="Correo electrónico">
+    <input type="password" id="loginPass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')iniciarSesion()">
+    <button class="btn amber" style="width:100%;justify-content:center;" onclick="iniciarSesion()">
+      <span id="loginSpinner" style="display:none;" class="spin"></span>Entrar
+    </button>
+    <div id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ===== APP PRINCIPAL ===== -->
+<div id="appShell">
+  <header>
+    <div class="row">
+      <div>
+        <h1>BHLC · Asistencia QR</h1>
+        <div class="tag">Control de entrada y salida en tiempo real</div>
+      </div>
+      <div class="userBadge">
+        <span id="userEmail"></span>
+        <button onclick="cerrarSesion()">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="no-print">
+    <button data-panel="perfiles" class="active">Perfiles / QR</button>
+    <button data-panel="escanear">Escanear</button>
+    <button data-panel="registros">Registros</button>
+    <button data-panel="respaldo">Respaldo</button>
+  </nav>
+
+  <main>
+    <div class="ok-note" id="syncStatus">🔄 Conectando con la nube…</div>
+
+    <!-- PERFILES / QR -->
+    <section id="panel-perfiles" class="panel active">
+      <div class="card">
+        <h2>Crear perfil</h2>
+        <label>Nombre completo</label>
+        <input type="text" id="pf-nombre" placeholder="Ej. Ana López Martínez">
+        <label>Área / Cargo (opcional)</label>
+        <input type="text" id="pf-area" placeholder="Ej. Recursos Humanos">
+        <button class="btn amber" onclick="crearPerfil()">+ Crear perfil y generar QR</button>
+      </div>
+      <div class="card">
+        <h2>Perfiles registrados (<span id="contadorPerfiles">0</span>)</h2>
+        <div id="listaPerfiles"><p class="empty">Cargando…</p></div>
+      </div>
+      <div class="card">
+        <h2>Credenciales con QR</h2>
+        <div class="grid" id="gridBadges"></div>
+      </div>
+    </section>
+
+    <!-- ESCANEAR -->
+    <section id="panel-escanear" class="panel">
+      <div class="card">
+        <h2>Escanear código QR</h2>
+        <p style="color:var(--muted);font-size:0.85rem;">Al escanear se registra automáticamente <strong>entrada o salida</strong> y se guarda la <strong>ubicación exacta</strong> donde se escaneó.</p>
+        <div class="note" id="geoWarning" style="display:none;">⚠️ No se pudo obtener la ubicación. Asegúrate de dar permiso de ubicación al navegador.</div>
+        <button class="btn" id="btnIniciarCamara" onclick="toggleCamara()">Activar cámara</button>
+        <div id="reader" style="margin-top:14px;"></div>
+        <div id="scanResult"></div>
+      </div>
+    </section>
+
+    <!-- REGISTROS -->
+    <section id="panel-registros" class="panel">
+      <div class="card">
+        <div class="toolbar">
+          <h2 style="margin:0;flex:1;">Registros (<span id="contadorRegistros">0</span>)</h2>
+          <button class="btn outline sm no-print" onclick="exportarCSV()">⬇ CSV / Excel</button>
+          <button class="btn outline sm no-print" onclick="window.print()">🖶 Imprimir</button>
+        </div>
+        <div style="overflow-x:auto;margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Área</th>
+                <th>Movimiento</th><th>Ubicación</th>
+              </tr>
+            </thead>
+            <tbody id="tablaRegistros"></tbody>
+          </table>
+          <p class="empty" id="emptyRegistros" style="display:none;">Aún no hay registros.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESPALDO -->
+    <section id="panel-respaldo" class="panel">
+      <div class="card">
+        <h2>Exportar copia de seguridad</h2>
+        <p style="color:var(--muted);font-size:0.85rem;">Descarga todos los perfiles y registros en un archivo .json por si necesitas transferirlos.</p>
+        <button class="btn amber" onclick="exportarJSON()">⬇ Descargar copia (.json)</button>
+      </div>
+      <div class="card">
+        <h2>Importar copia de seguridad</h2>
+        <label>Archivo .json exportado anteriormente</label>
+        <input type="file" id="inputImport" accept="application/json">
+        <button class="btn outline" onclick="importarJSON()">Cargar datos a la nube</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ========== FIREBASE INIT ==========
+const configOk = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("PEGA");
+
+if(!configOk){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('setupOverlay').classList.add('show');
+}
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+let perfiles = [];
+let registros = [];
+let html5QrCode = null;
+let camaraActiva = false;
+let ultimoScanTs = 0;
+let unsubPerfiles = null;
+let unsubRegistros = null;
+
+// ========== AUTENTICACIÓN ==========
+function iniciarSesion(){
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginErr');
+  const spin  = document.getElementById('loginSpinner');
+  err.textContent = '';
+
+  if(!email || !pass){ err.textContent = 'Ingresa correo y contraseña.'; return; }
+  if(!ADMINS_PERMITIDOS.includes(email)){
+    err.textContent = 'Este correo no tiene acceso de administrador.'; return;
+  }
+  spin.style.display = 'inline-block';
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e=>{
+      spin.style.display = 'none';
+      err.textContent = e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
+        ? 'Correo o contraseña incorrectos.' : 'Error: ' + e.message;
+    });
+}
+
+function cerrarSesion(){
+  if(unsubPerfiles) unsubPerfiles();
+  if(unsubRegistros) unsubRegistros();
+  if(camaraActiva) pararCamara();
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(user=>{
+  if(user && ADMINS_PERMITIDOS.includes(user.email.toLowerCase())){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').classList.add('show');
+    document.getElementById('userEmail').textContent = user.email;
+    iniciarEscucha();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appShell').classList.remove('show');
+    if(unsubPerfiles){ unsubPerfiles(); unsubPerfiles=null; }
+    if(unsubRegistros){ unsubRegistros(); unsubRegistros=null; }
+    perfiles = []; registros = [];
+  }
+});
+
+// ========== ESCUCHA EN TIEMPO REAL (Firestore) ==========
+function iniciarEscucha(){
+  const syncEl = document.getElementById('syncStatus');
+
+  unsubPerfiles = db.collection('perfiles').orderBy('creadoEn','asc')
+    .onSnapshot(snap=>{
+      perfiles = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderPerfiles();
+      syncEl.textContent = '☁️ Sincronizado con la nube en tiempo real';
+    }, err=>{ syncEl.textContent = '⚠️ Error de conexión: '+err.message; });
+
+  unsubRegistros = db.collection('registros').orderBy('fechaISO','desc').limit(500)
+    .onSnapshot(snap=>{
+      registros = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderRegistros();
+    });
+}
+
+// ========== NAVEGACIÓN ==========
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.panel).classList.add('active');
+    if(btn.dataset.panel!=='escanear' && camaraActiva) pararCamara();
+  });
+});
+
+// ========== PERFILES ==========
+async function crearPerfil(){
+  const nombre = document.getElementById('pf-nombre').value.trim();
+  const area   = document.getElementById('pf-area').value.trim();
+  if(!nombre){ alert('Escribe el nombre de la persona.'); return; }
+  try{
+    await db.collection('perfiles').add({ nombre, area, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+    document.getElementById('pf-nombre').value = '';
+    document.getElementById('pf-area').value = '';
+  }catch(e){ alert('Error al guardar: '+e.message); }
+}
+
+async function eliminarPerfil(id){
+  if(!confirm('¿Eliminar este perfil? Sus registros pasados no se borrarán.')) return;
+  await db.collection('perfiles').doc(id).delete();
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderPerfiles(){
+  document.getElementById('contadorPerfiles').textContent = perfiles.length;
+  const lista = document.getElementById('listaPerfiles');
+  const grid  = document.getElementById('gridBadges');
+  if(!perfiles.length){
+    lista.innerHTML = '<p class="empty">Aún no hay perfiles creados.</p>';
+    grid.innerHTML = '';
+    return;
+  }
+  lista.innerHTML = perfiles.map(p=>`
+    <div class="profile-row">
+      <div>
+        <div class="pname">${escapeHtml(p.nombre)}</div>
+        <div class="pmeta">${escapeHtml(p.area||'—')} · ID: ${p.id.substring(0,8)}…</div>
+      </div>
+      <div><button class="smallbtn" onclick="eliminarPerfil('${p.id}')">Eliminar</button></div>
+    </div>`).join('');
+
+  grid.innerHTML = '';
+  perfiles.forEach(p=>{
+    const card = document.createElement('div');
+    card.className = 'badge';
+    card.innerHTML = `
+      <div class="org">BHLC · Credencial de asistencia</div>
+      <div class="qrwrap" id="qr-${p.id}"></div>
+      <div class="bname">${escapeHtml(p.nombre)}</div>
+      <div class="brole">${escapeHtml(p.area||'')}</div>
+      <div class="bidcode">ID: ${p.id.substring(0,12)}</div>
+      <div class="bactions">
+        <button class="smallbtn" onclick="descargarQR('${p.id}','${escapeHtml(p.nombre).replace(/'/g,'')}')">⬇ Descargar</button>
+        <button class="smallbtn" onclick="compartirQR('${p.id}','${escapeHtml(p.nombre).replace(/'/g,'')}')">↗ Compartir</button>
+      </div>`;
+    grid.appendChild(card);
+    setTimeout(()=>{
+      const wrap = document.getElementById('qr-'+p.id);
+      if(wrap && !wrap.querySelector('canvas')){
+        new QRCode(wrap, {text:p.id, width:130, height:130, colorDark:'#1B2A4A', colorLight:'#ffffff'});
+      }
+    }, 50);
+  });
+}
+
+async function canvasComoBlob(id){
+  return new Promise(resolve=>{
+    const wrap = document.getElementById('qr-'+id);
+    if(!wrap) return resolve(null);
+    const el = wrap.querySelector('canvas') || wrap.querySelector('img');
+    if(!el) return resolve(null);
+    if(el.tagName==='CANVAS') el.toBlob(b=>resolve(b),'image/png');
+    else fetch(el.src).then(r=>r.blob()).then(resolve);
+  });
+}
+
+async function descargarQR(id, nombre){
+  const blob = await canvasComoBlob(id);
+  if(!blob){ alert('QR no listo aún, espera un segundo.'); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`BHLC-QR-${nombre.replace(/\s+/g,'_')}.png`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function compartirQR(id, nombre){
+  const blob = await canvasComoBlob(id);
+  if(!blob){ alert('QR no listo aún, espera un segundo.'); return; }
+  const file = new File([blob],`BHLC-QR-${nombre.replace(/\s+/g,'_')}.png`,{type:'image/png'});
+  if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({
+        files:[file],
+        title:'Tu código QR de asistencia BHLC',
+        text:`Hola ${nombre}, este es tu código QR para registrar tu asistencia BHLC. Guárdalo y muéstralo cada vez que llegues.`
+      });
+    }catch(e){}
+  } else {
+    descargarQR(id, nombre);
+    alert('Se descargó la imagen. Compártela manualmente por WhatsApp o correo.');
+  }
+}
+
+// ========== GEOLOCALIZACIÓN ==========
+function obtenerGeolocalizacion(){
+  return new Promise((resolve)=>{
+    if(!navigator.geolocation){ resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos=>resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, precision: Math.round(pos.coords.accuracy) }),
+      ()=>resolve(null),
+      { timeout:8000, enableHighAccuracy:true }
+    );
+  });
+}
+
+// ========== ESCANEO ==========
+function toggleCamara(){
+  if(camaraActiva) pararCamara(); else iniciarCamara();
+}
+
+function iniciarCamara(){
+  if(!perfiles.length){ alert('Primero crea al menos un perfil en la pestaña "Perfiles / QR".'); return; }
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode:"environment" },
+    { fps:10, qrbox:230 },
+    onScanSuccess,
+    ()=>{}
+  ).then(()=>{
+    camaraActiva = true;
+    document.getElementById('btnIniciarCamara').textContent = 'Detener cámara';
+  }).catch(err=>{
+    alert('No se pudo activar la cámara: '+err+'\n\nRecuerda que la cámara solo funciona desde una dirección https:// (no en archivo local).');
+  });
+}
+
+function pararCamara(){
+  if(html5QrCode){
+    html5QrCode.stop().then(()=>{ html5QrCode.clear(); }).catch(()=>{});
+  }
+  camaraActiva = false;
+  document.getElementById('btnIniciarCamara').textContent = 'Activar cámara';
+}
+
+async function onScanSuccess(decodedText){
+  const now = Date.now();
+  if(now - ultimoScanTs < 3000) return;
+  ultimoScanTs = now;
+
+  const perfil = perfiles.find(p=>p.id === decodedText.trim());
+  const resultBox = document.getElementById('scanResult');
+  if(!perfil){
+    resultBox.className = 'show err';
+    resultBox.innerHTML = '⚠️ QR no reconocido — no pertenece a ningún perfil registrado.';
+    return;
+  }
+
+  resultBox.className = 'show in';
+  resultBox.innerHTML = '<span class="spin"></span> Obteniendo ubicación…';
+
+  // Geolocalización
+  const geo = await obtenerGeolocalizacion();
+  if(!geo) document.getElementById('geoWarning').style.display = 'block';
+  else document.getElementById('geoWarning').style.display = 'none';
+
+  // Determinar entrada o salida
+  const regsPersona = registros.filter(r=>r.perfilId===perfil.id);
+  const ultimo = regsPersona[0]; // ya ordenado desc
+  const tipo = (!ultimo || ultimo.tipo==='salida') ? 'entrada' : 'salida';
+
+  const fechaObj = new Date();
+  const registro = {
+    perfilId: perfil.id,
+    nombre:   perfil.nombre,
+    area:     perfil.area || '',
+    tipo,
+    fechaISO: fechaObj.toISOString(),
+    lat:      geo ? geo.lat  : null,
+    lng:      geo ? geo.lng  : null,
+    precision:geo ? geo.precision : null
+  };
+
+  try{
+    await db.collection('registros').add(registro);
+    resultBox.className = 'show ' + (tipo==='entrada'?'in':'out');
+    let geoTxt = geo
+      ? `📍 ${geo.lat.toFixed(5)}, ${geo.lng.toFixed(5)} (±${geo.precision}m)`
+      : '📍 Ubicación no disponible';
+    resultBox.innerHTML = `
+      <div style="font-size:1.1rem">${perfil.nombre}</div>
+      <div>${tipo.toUpperCase()} · ${fechaObj.toLocaleTimeString()}</div>
+      <div style="font-size:0.78rem;margin-top:6px;opacity:0.8">${geoTxt}</div>`;
+  }catch(e){
+    resultBox.className = 'show err';
+    resultBox.textContent = 'Error al guardar: '+e.message;
+  }
+}
+
+// ========== REGISTROS ==========
+function renderRegistros(){
+  document.getElementById('contadorRegistros').textContent = registros.length;
+  const tbody = document.getElementById('tablaRegistros');
+  const empty = document.getElementById('emptyRegistros');
+  if(!registros.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = registros.map(r=>{
+    const d = new Date(r.fechaISO);
+    let geoCell = '<span class="geoTag">—</span>';
+    if(r.lat && r.lng){
+      const mapsUrl = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
+      geoCell = `<a class="geoLink" href="${mapsUrl}" target="_blank">📍 Ver mapa</a><br>
+                 <span class="geoTag">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</span>`;
+    }
+    return `<tr>
+      <td>${d.toLocaleDateString()}</td>
+      <td>${d.toLocaleTimeString()}</td>
+      <td>${escapeHtml(r.nombre)}</td>
+      <td>${escapeHtml(r.area||'—')}</td>
+      <td><span class="pill ${r.tipo==='entrada'?'in':'out'}">${r.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+      <td>${geoCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ========== EXPORTAR CSV ==========
+function exportarCSV(){
+  if(!registros.length){ alert('No hay registros para exportar.'); return; }
+  let csv = 'Fecha,Hora,Nombre,Area,Movimiento,Latitud,Longitud,Precision(m),Ver mapa\n';
+  registros.forEach(r=>{
+    const d = new Date(r.fechaISO);
+    const mapsUrl = (r.lat && r.lng) ? `https://www.google.com/maps?q=${r.lat},${r.lng}` : '';
+    csv += [
+      d.toLocaleDateString(), d.toLocaleTimeString(),
+      `"${(r.nombre||'').replace(/"/g,'""')}"`,
+      `"${(r.area||'').replace(/"/g,'""')}"`,
+      r.tipo, r.lat||'', r.lng||'', r.precision||'', mapsUrl
+    ].join(',')+'\n';
+  });
+  descargarArchivo(csv,'BHLC-registros-asistencia.csv','text/csv;charset=utf-8;');
+}
+
+// ========== RESPALDO JSON ==========
+function exportarJSON(){
+  const data = JSON.stringify({perfiles,registros},null,2);
+  descargarArchivo(data,'BHLC-respaldo.json','application/json');
+}
+
+async function importarJSON(){
+  const input = document.getElementById('inputImport');
+  if(!input.files.length){ alert('Selecciona un archivo .json primero.'); return; }
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      const batch1 = db.batch();
+      (data.perfiles||[]).forEach(p=>{
+        const ref = db.collection('perfiles').doc();
+        batch1.set(ref,{ nombre:p.nombre, area:p.area||'', creadoEn:firebase.firestore.FieldValue.serverTimestamp() });
+      });
+      await batch1.commit();
+      const batch2 = db.batch();
+      (data.registros||[]).forEach(r=>{
+        const ref = db.collection('registros').doc();
+        batch2.set(ref,{ ...r });
+      });
+      await batch2.commit();
+      alert('Datos importados a la nube correctamente.');
+    }catch(err){ alert('Error: '+err.message); }
+  };
+  reader.readAsText(input.files[0]);
+}
+
+function descargarArchivo(contenido, nombre, tipo){
+  const blob = new Blob([contenido],{type:tipo});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=nombre;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ========== PWA ==========
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('BHLC-sw.js').catch(()=>{});
+  });
+}
+</script>
+
+</body>
+</html>

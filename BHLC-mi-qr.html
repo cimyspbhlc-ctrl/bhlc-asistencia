@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mi QR · BHLC</title>
+<link rel="manifest" href="BHLC-manifest.json">
+<meta name="theme-color" content="#1B2A4A">
+<link rel="apple-touch-icon" href="BHLC-icon-192.png">
+<link rel="icon" href="BHLC-icon-192.png">
+<link rel="stylesheet" href="BHLC-shared.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+.center{display:flex;flex-direction:column;align-items:center;text-align:center;}
+#qrCanvasWrap canvas{border-radius:12px;box-shadow:0 6px 18px rgba(27,42,74,0.18);margin:12px 0;}
+.idLabel{font-family:'Courier New',monospace;font-size:1rem;letter-spacing:2px;color:#1B2A4A;margin-top:6px;}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">&larr; Menú principal</a>
+  <h1>Mi QR personal</h1>
+  <div class="tag">Guarda aquí tu credencial</div>
+</header>
+<main>
+  <div class="note">
+    El administrador te dará tu <strong>ID personal</strong> (empieza con letras y números). Escríbelo aquí para generar tu QR, guárdalo o compártelo contigo mismo para siempre tenerlo a la mano.
+  </div>
+  <div class="card center">
+    <label style="align-self:center;">Tu ID de asistencia</label>
+    <input type="text" id="miId" placeholder="Pega aquí tu ID" style="max-width:320px;text-align:center;">
+    <label style="align-self:center;">Tu nombre (opcional, solo para mostrarlo aquí)</label>
+    <input type="text" id="miNombre" placeholder="Ej. Ana López" style="max-width:280px;text-align:center;">
+    <button class="btn amber" onclick="generarMiQR()">Generar mi QR</button>
+
+    <div id="qrBig" style="display:none;margin-top:16px;">
+      <div id="qrCanvasWrap"></div>
+      <div id="miNombreMostrado" style="font-weight:800;font-size:1.1rem;margin-top:4px;"></div>
+      <div class="idLabel" id="miIdMostrado"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn outline" onclick="descargarMiQR()">⬇ Guardar imagen</button>
+        <button class="btn outline" onclick="compartirMiQR()">↗ Compartir</button>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+function generarMiQR(){
+  const id = document.getElementById('miId').value.trim();
+  const nombre = document.getElementById('miNombre').value.trim();
+  if(!id){ alert('Escribe tu ID de asistencia.'); return; }
+  document.getElementById('qrCanvasWrap').innerHTML = '';
+  new QRCode(document.getElementById('qrCanvasWrap'),{
+    text:id, width:220, height:220, colorDark:'#1B2A4A', colorLight:'#ffffff'
+  });
+  document.getElementById('miNombreMostrado').textContent = nombre;
+  document.getElementById('miIdMostrado').textContent = 'ID: '+id;
+  document.getElementById('qrBig').style.display = 'block';
+  localStorage.setItem('bhlc_mi_id', id);
+  localStorage.setItem('bhlc_mi_nombre', nombre);
+}
+function getBlob(){
+  return new Promise(resolve=>{
+    const wrap = document.getElementById('qrCanvasWrap');
+    const el = wrap.querySelector('canvas') || wrap.querySelector('img');
+    if(!el) return resolve(null);
+    if(el.tagName==='CANVAS') el.toBlob(b=>resolve(b),'image/png');
+    else fetch(el.src).then(r=>r.blob()).then(resolve);
+  });
+}
+async function descargarMiQR(){
+  const blob = await getBlob(); if(!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='BHLC-Mi-QR.png';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+async function compartirMiQR(){
+  const blob = await getBlob(); if(!blob) return;
+  const file = new File([blob],'BHLC-Mi-QR.png',{type:'image/png'});
+  if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:'Mi QR BHLC'}); }catch(e){}
+  } else { descargarMiQR(); }
+}
+window.addEventListener('load',()=>{
+  const id = localStorage.getItem('bhlc_mi_id');
+  const nombre = localStorage.getItem('bhlc_mi_nombre');
+  if(id){
+    document.getElementById('miId').value = id;
+    document.getElementById('miNombre').value = nombre||'';
+    generarMiQR();
+  }
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('BHLC-sw.js').catch(()=>{}); }
+});
+</script>
+</body>
+</html>

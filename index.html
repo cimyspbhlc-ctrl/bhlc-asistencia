@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BHLC · Asistencia QR</title>
+<link rel="manifest" href="BHLC-manifest.json">
+<meta name="theme-color" content="#1B2A4A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BHLC">
+<link rel="apple-touch-icon" href="BHLC-icon-192.png">
+<link rel="icon" href="BHLC-icon-192.png">
+<link rel="stylesheet" href="BHLC-shared.css">
+</head>
+<body>
+<header>
+  <h1>BHLC · Asistencia QR</h1>
+  <div class="tag">Elige tu acceso</div>
+</header>
+<main>
+  <div class="note">Selecciona quién eres para acceder a la función correcta.</div>
+  <div class="menu-grid">
+    <a class="menu-card" href="BHLC-asistencia.html">
+      <div class="emoji">🔐</div>
+      <h3>Administrador</h3>
+      <p>Crear perfiles, generar y compartir QR, escanear entradas/salidas, ver y descargar todos los registros. Requiere contraseña.</p>
+    </a>
+    <a class="menu-card" href="BHLC-mi-qr.html">
+      <div class="emoji">📱</div>
+      <h3>Mi QR personal</h3>
+      <p>Solo para ver y guardar tu propio código QR en tu celular y mostrarlo al moderador cuando llegues.</p>
+    </a>
+  </div>
+</main>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('BHLC-sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
