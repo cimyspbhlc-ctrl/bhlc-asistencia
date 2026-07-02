@@ -165,6 +165,7 @@ th{font-family:var(--font-display);font-size:0.68rem;text-transform:uppercase;le
 <body>
 
 <!-- ==================== CONFIGURACIÓN FIREBASE ==================== -->
+<!-- MODIFICA ESTE BLOQUE CON TUS DATOS DE FIREBASE -->
 <script>
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyAylkGAU0aKjBN4-m52gDvEWr3DeNt0G-M",
@@ -186,7 +187,18 @@ const ADMINS_PERMITIDOS = [
 <div id="setupOverlay">
   <div class="setupBox">
     <h2>⚙️ Configuración inicial de BHLC</h2>
-    <p>Esta app aún no está conectada a Firebase.</p>
+    <p>Esta app aún no está conectada a Firebase. Sigue estos pasos rápidos (gratis, 5 minutos):</p>
+    <div class="step"><strong>Paso 1 — Crear proyecto Firebase</strong>
+      Entra a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → "Agregar proyecto" → ponle un nombre (ej. <em>bhlc-asistencia</em>) → desactiva Analytics → Crear.</div>
+    <div class="step"><strong>Paso 2 — Activar Autenticación</strong>
+      En el menú izquierdo: <em>Authentication → Get started → Email/Contraseña → Activar → Guardar</em>.<br>
+      Luego ve a <em>Authentication → Users → Add user</em> y crea los dos correos de administrador con sus contraseñas.</div>
+    <div class="step"><strong>Paso 3 — Activar Firestore</strong>
+      Menú izquierdo: <em>Firestore Database → Create database → Start in test mode → Next → Enable</em>.</div>
+    <div class="step"><strong>Paso 4 — Obtener credenciales</strong>
+      Menú izquierdo: <em>Project Settings (ícono ⚙️) → General → Tu aplicación → &lt;/&gt; (Web) → Registrar app</em>. Copia el bloque <code>firebaseConfig</code> y pégalo en el archivo <code>BHLC-asistencia.html</code> dentro del bloque FIREBASE_CONFIG (líneas ~65-72).<br>
+      También actualiza el arreglo <code>ADMINS_PERMITIDOS</code> con los correos de los dos admins.</div>
+    <p>Cuando termines, recarga esta página.</p>
     <button class="btn amber" onclick="document.getElementById('setupOverlay').classList.remove('show')">Entendido, ya lo configuré</button>
   </div>
 </div>
